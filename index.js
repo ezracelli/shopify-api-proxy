@@ -13,16 +13,11 @@ const querystring = require('querystring')
 const shopifyApiProxy = require('./router')
 
 const {
-  NODE_ENV,
   SHOPIFY_API_PUBLIC_KEY,
   SHOPIFY_APP_HOST,
   SHOPIFY_API_SECRET_KEY,
   PORT,
 } = process.env
-
-const corsProxy = NODE_ENV !== 'production'
-  ? 'https://cors-anywhere.herokuapp.com/'
-  : ''
 
 const scopes = [
   'read_orders',
@@ -52,7 +47,7 @@ const buildInstallUrl = (shop, state, redirectUri) => {
     redirect_uri: redirectUri,
   }
 
-  return `${corsProxy}https://${shop}/admin/oauth/authorize?${querystring.stringify(query)}`
+  return `https://${shop}/admin/oauth/authorize?${querystring.stringify(query)}`
 }
 
 const generateEncryptedHash = params =>
@@ -82,7 +77,18 @@ app.get('/shopify', async (req, res) => {
   const stateCookie = await bcrypt.hash(state, 10)
 
   res.cookie('state', stateCookie)
-  res.redirect(installShopUrl)
+
+  // bypassing cors!
+  res.send(
+    `<!DOCTYPE html>
+    <html>
+      <head>
+        <script>
+          window.top.location.href = "${installShopUrl}"
+        </script>
+      </head>
+    </html>`,
+  )
 })
 
 app.get('/shopify/callback', async (req, res) => {
