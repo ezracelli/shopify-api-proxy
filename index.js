@@ -38,7 +38,7 @@ const scopes = [
 let state = `${nonce()}`
 
 const app = express()
-app.use(cors({ origin: NODE_ENV === 'production' ? '*' : true }))
+app.use(cors({ origin: true }))
 
 // /////////// Helper Functions /////////////
 
