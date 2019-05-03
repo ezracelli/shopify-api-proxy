@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "axios": "^0.18.0",
+    "bcrypt": "^3.0.6",
     "cookie": "^0.3.1",
     "cors": "^2.8.5",
     "dotenv": "^7.0.0",

@@ -3,6 +3,7 @@
 require('dotenv').config()
 
 const axios = require('axios')
+const bcrypt = require('bcrypt')
 const cookie = require('cookie')
 const cors = require('cors')
 const crypto = require('crypto')
@@ -11,16 +12,17 @@ const nonce = require('nonce')()
 const querystring = require('querystring')
 const shopifyApiProxy = require('./router')
 
-const corsProxy = process.env.NODE_ENV !== 'production'
-  ? 'https://cors-anywhere.herokuapp.com/'
-  : ''
-
 const {
+  NODE_ENV,
   SHOPIFY_API_PUBLIC_KEY,
   SHOPIFY_APP_HOST,
   SHOPIFY_API_SECRET_KEY,
   PORT,
 } = process.env
+
+const corsProxy = NODE_ENV !== 'production'
+  ? 'https://cors-anywhere.herokuapp.com/'
+  : ''
 
 const scopes = [
   'read_orders',
@@ -32,6 +34,8 @@ const scopes = [
   'read_themes',
   'write_themes',
 ]
+
+let state = `${nonce()}`
 
 const app = express()
 app.use(cors({ origin: true }))
@@ -66,18 +70,18 @@ app.get('/', (req, res) => res.send('Hello, world!'))
 
 // auth routes
 
-app.get('/shopify', (req, res) => {
+app.get('/shopify', async (req, res) => {
   const shop = req.query.shop
 
   if (!shop) {
     return res.status(400).send('no shop')
   }
 
-  const state = nonce()
-
+  state = `${nonce()}`
   const installShopUrl = buildInstallUrl(shop, state, buildRedirectUri())
+  const stateCookie = await bcrypt.hash(state, 10)
 
-  res.cookie('state', state) // should be encrypted in production
+  res.cookie('state', stateCookie)
   res.redirect(installShopUrl)
 })
 
@@ -87,7 +91,8 @@ app.get('/shopify/callback', async (req, res) => {
 
   const stateCookie = cookie.parse(req.headers.cookie).state
 
-  if (state !== stateCookie) {
+  const verified = await bcrypt.compare(state, stateCookie)
+  if (!verified) {
     return res.status(401).send('cannot be verified')
   }
 
@@ -124,4 +129,5 @@ app.use('/', shopifyApiProxy)
 
 // /////////// Start the Server /////////////
 
-app.listen(PORT, () => console.log(`listening on port ${PORT}`))
+const port = PORT || 80
+app.listen(port, () => console.log(`listening on port ${port}`))
